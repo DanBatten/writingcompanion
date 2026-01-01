@@ -1,0 +1,19 @@
+{
+  "name": "content-capture-mcp",
+  "version": "0.1.0",
+  "description": "Connects to personal content-capture API to search embedded vectors and retrieve relevant articles, papers, and inspiration",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-vault-mcp",
+  "version": "0.1.0",
+  "description": "Interfaces with Obsidian vault to read notes, follow links, and understand personal knowledge structure",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
