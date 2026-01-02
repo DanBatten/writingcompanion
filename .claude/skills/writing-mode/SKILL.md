@@ -1,7 +1,7 @@
 ---
 name: "writing-mode"
 description: "Structures writing sessions with clear goals, outlines, and progressive development. Integrates research findings into coherent narratives."
-version: "0.1.0"
+version: "0.2.0"
 ---
 
 # Writing Mode Controller
@@ -26,12 +26,73 @@ When the user activates writing mode, follow these principles:
    - Other format
 
 2. **Gather context**:
-   - Was there a preceding research session? If so, use those insights
+   - Was there a preceding research session? If so, link to that research note
    - What's the target audience?
    - What's the desired length/depth?
    - Is there an existing draft to work from?
 
-3. **Establish the core message**: Help articulate the central idea or argument before writing begins
+3. **Create the draft note**: Immediately create a note in `Drafts/` folder in Obsidian
+
+4. **Establish the core message**: Help articulate the central idea or argument before writing begins
+
+### Draft Auto-Save (IMPORTANT)
+
+**All writing sessions are automatically saved to Obsidian** in the `Drafts/` folder. This ensures drafts are never lost and can be continued across sessions.
+
+#### Creating the Draft Note
+
+At the start of every writing session, use the `create_note` tool to create a draft:
+
+```
+Path: Drafts/YYYY-MM-DD-title-slug.md
+
+Frontmatter:
+- date: session date
+- title: piece title
+- type: blog-post | article | documentation | essay
+- status: draft | in-progress | review | complete
+- tags: [draft, topic-tags]
+- research: [[Research/related-research-note]] (if applicable)
+
+Initial structure:
+# [Title]
+
+## Metadata
+- **Audience**: [target readers]
+- **Goal**: [what this piece aims to achieve]
+- **Research**: [[Research/YYYY-MM-DD-topic]] (if from research mode)
+
+## Thesis
+[One-sentence core argument]
+
+## Outline
+[Section structure]
+
+## Draft
+[The actual content]
+
+## Notes
+[Comments, todos, revision notes]
+```
+
+#### Continuous Updates
+
+**Update the draft after each significant writing milestone:**
+
+1. After outlining → Save the outline to the draft
+2. After each section draft → Update the Draft section
+3. After revisions → Update content and add revision notes
+4. After feedback → Note changes in the Notes section
+
+Use the `update_note` tool to save the current state of the draft.
+
+#### Draft States
+
+Track the draft status in frontmatter:
+- `draft`: Initial outline and early drafting
+- `in-progress`: Active writing, sections being developed
+- `review`: Complete draft, under revision
+- `complete`: Finished piece
 
 ### Writing Process
 
@@ -44,8 +105,9 @@ Before writing prose:
    - Major sections with clear purposes
    - Key points for each section
    - Logical flow between sections
-3. **Identify supporting material**:
-   - Pull relevant quotes/data from research
+3. **Save outline to draft**: Update the Obsidian note with the outline
+4. **Identify supporting material**:
+   - Pull relevant quotes/data from research (link to research note)
    - Note which sources support which points
    - Plan where examples or case studies fit
 
@@ -58,7 +120,8 @@ Write section by section:
    - Write one section at a time
    - Don't perfect; get ideas down
    - Mark places that need more research with [TODO]
-3. **Maintain momentum**:
+3. **Save after each section**: Update the draft note in Obsidian
+4. **Maintain momentum**:
    - Keep writing forward
    - Note concerns but don't stop to fix
    - Save editing for later
@@ -82,20 +145,24 @@ After a complete draft exists:
    - Proper attribution
    - Consistent tone
 
+4. **Update status**: Change frontmatter status to `review` then `complete`
+
 ### Tools to Use
 
-**Notion MCP** (for saving work)
-- `create_page`: Save drafts to Notion
-- `append_to_page`: Add to existing drafts
-- `search_pages`: Find related notes
+**Obsidian Vault MCP (for saving drafts)**
+- `create_note`: Create the draft note at session start
+- `update_note`: Save draft progress after each section
+- `append_to_note`: Add revision notes or comments
+- `read_note`: Load existing drafts to continue
+- `search_notes`: Find related notes and research
 
 **Content Capture MCP** (for sourcing)
 - `search_knowledge`: Find supporting material
 - `get_content_item`: Retrieve full source text
 
-**Obsidian Vault MCP**
-- `read_note`: Access relevant personal notes
-- `search_notes`: Find supporting ideas
+**Notion MCP** (optional, for publishing)
+- `create_page`: Publish finished drafts to Notion
+- `search_pages`: Find related project notes
 
 ### Writing Behaviors
 
@@ -122,42 +189,96 @@ After a complete draft exists:
 **Starting Fresh**
 ```
 User: /writing-mode "blog post about X"
+
 Claude:
-1. Asks clarifying questions about audience and angle
-2. Proposes a working thesis
-3. Suggests an outline
-4. Begins drafting once structure is approved
+1. Creates draft: Drafts/2024-01-03-blog-post-x.md
+2. Asks clarifying questions about audience and angle
+3. Proposes a working thesis
+4. Saves outline to draft
+5. Begins drafting, saving after each section
 ```
 
 **From Research**
 ```
 User: /writing-mode (after /research-mode)
+
 Claude:
-1. Summarizes key research findings
-2. Proposes how to structure them into a piece
-3. Identifies the strongest narrative thread
-4. Creates outline incorporating research
+1. Creates draft with link to research: [[Research/2024-01-03-topic]]
+2. Summarizes key research findings
+3. Proposes how to structure them into a piece
+4. Saves outline referencing research sources
+5. Drafts with citations from research note
+```
+
+**Continuing a Draft**
+```
+User: /writing-mode continue "my-article"
+
+Claude:
+1. Reads existing draft from Drafts/
+2. Summarizes current state
+3. Identifies what's done and what's remaining
+4. Continues from where left off
 ```
 
 **Editing Existing Work**
 ```
 User: /writing-mode edit [paste draft]
+
 Claude:
-1. Reads and understands the draft
-2. Identifies strengths and opportunities
-3. Proposes specific improvements
-4. Helps implement revisions
+1. Creates or updates draft note
+2. Reads and understands the draft
+3. Identifies strengths and opportunities
+4. Proposes specific improvements
+5. Saves revised version
 ```
 
-### Output Options
+### Example Draft Note
 
-When finishing a writing session:
+```markdown
+---
+date: "2024-01-03"
+title: "Understanding Agentic AI Patterns"
+type: "blog-post"
+status: "in-progress"
+tags: ["draft", "AI", "agents", "architecture"]
+research: "[[Research/2024-01-03-agentic-ai-patterns]]"
+---
 
-1. **Save to Notion**: Create a page with the draft
-2. **Export as file**: Write to a local markdown file
-3. **Keep in chat**: Just return the text for user to copy
+# Understanding Agentic AI Patterns
 
-Ask the user their preference before finalizing.
+## Metadata
+- **Audience**: Software engineers interested in AI
+- **Goal**: Explain modern AI agent architectures accessibly
+- **Research**: [[Research/2024-01-03-agentic-ai-patterns]]
+
+## Thesis
+AI agents are evolving from simple prompt-response systems to sophisticated architectures that combine reasoning, tool use, and memory—and understanding these patterns is essential for building effective AI applications.
+
+## Outline
+1. Introduction: Why agents matter now
+2. The ReAct Pattern: Reasoning + Acting
+3. Tool Use: Extending AI capabilities
+4. Memory Systems: Short-term vs long-term
+5. Multi-Agent Architectures
+6. Practical Considerations
+7. Conclusion: Where agents are heading
+
+## Draft
+
+### Introduction: Why agents matter now
+
+[Draft content here...]
+
+### The ReAct Pattern
+
+[Draft content here...]
+
+## Notes
+- Need to add more concrete code examples
+- Consider adding a diagram for the ReAct loop
+- Reviewer suggested stronger opening hook
+```
 
 ### What NOT to Do
 
@@ -166,10 +287,11 @@ Ask the user their preference before finalizing.
 - Don't pad content to hit arbitrary length
 - Don't refuse to start until everything is perfectly planned
 - Don't lose research insights by not referencing them
+- **Don't forget to save drafts to Obsidian** - this is critical for persistence
 
 ### Integration with Other Skills
 
-- **From /research-mode**: Accept research context and transform into writing
+- **From /research-mode**: Accept research context, link to research note, transform into writing
 - **To /concept-web-builder**: Request additional connections if needed during writing
 - **To /code-project-analyzer**: Get technical details for technical writing
 
@@ -182,5 +304,6 @@ Example invocations:
 - `/writing-mode "article about distributed systems"` - Start with a topic
 - `/writing-mode edit` - Edit existing content (paste or reference)
 - `/writing-mode continue` - Resume previous writing session
+- `/writing-mode continue "my-draft-title"` - Continue a specific draft
 
-The skill produces actual prose and drafts, not just outlines or suggestions.
+The skill produces actual prose and drafts, not just outlines or suggestions. All work is saved to Obsidian for future reference and continuation.

@@ -170,8 +170,33 @@ async function findBacklinks(targetNote: string): Promise<string[]> {
   return backlinks;
 }
 
+async function ensureDirectoryExists(dirPath: string): Promise<void> {
+  try {
+    await fs.access(dirPath);
+  } catch {
+    await fs.mkdir(dirPath, { recursive: true });
+  }
+}
+
+function formatFrontmatter(metadata: Record<string, unknown>): string {
+  if (Object.keys(metadata).length === 0) return '';
+
+  const lines = ['---'];
+  for (const [key, value] of Object.entries(metadata)) {
+    if (Array.isArray(value)) {
+      lines.push(`${key}: [${value.map(v => `"${v}"`).join(', ')}]`);
+    } else if (typeof value === 'string') {
+      lines.push(`${key}: "${value}"`);
+    } else {
+      lines.push(`${key}: ${value}`);
+    }
+  }
+  lines.push('---', '');
+  return lines.join('\n');
+}
+
 const server = new Server(
-  { name: 'obsidian-vault-mcp', version: '0.1.0' },
+  { name: 'obsidian-vault-mcp', version: '0.2.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -283,6 +308,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: 2,
             },
           },
+        },
+      },
+      {
+        name: 'create_note',
+        description: 'Create a new note in the Obsidian vault. Creates parent folders if needed.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            note_path: {
+              type: 'string',
+              description: 'Path for the new note (relative to vault root, e.g., "Research/my-topic.md")',
+            },
+            content: {
+              type: 'string',
+              description: 'Content of the note (markdown)',
+            },
+            frontmatter: {
+              type: 'object',
+              description: 'Optional frontmatter metadata (e.g., { tags: ["research"], date: "2024-01-03" })',
+            },
+            overwrite: {
+              type: 'boolean',
+              description: 'If true, overwrite existing note. If false (default), fail if note exists.',
+              default: false,
+            },
+          },
+          required: ['note_path', 'content'],
+        },
+      },
+      {
+        name: 'update_note',
+        description: 'Update/replace the content of an existing note. Preserves or updates frontmatter.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            note_path: {
+              type: 'string',
+              description: 'Path to the note to update',
+            },
+            content: {
+              type: 'string',
+              description: 'New content for the note (replaces existing content)',
+            },
+            frontmatter: {
+              type: 'object',
+              description: 'Optional new frontmatter (merged with existing if not provided)',
+            },
+          },
+          required: ['note_path', 'content'],
+        },
+      },
+      {
+        name: 'append_to_note',
+        description: 'Append content to the end of an existing note.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            note_path: {
+              type: 'string',
+              description: 'Path to the note to append to',
+            },
+            content: {
+              type: 'string',
+              description: 'Content to append',
+            },
+            create_if_missing: {
+              type: 'boolean',
+              description: 'If true, create the note if it does not exist',
+              default: false,
+            },
+          },
+          required: ['note_path', 'content'],
         },
       },
     ],
@@ -515,6 +612,122 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const header = folderPath ? `Folder: ${folderPath}` : 'Vault structure';
 
       return { content: [{ type: 'text', text: `${header}\n\n${tree}` }] };
+    }
+
+    case 'create_note': {
+      const { note_path, content, frontmatter = {}, overwrite = false } = args as {
+        note_path: string;
+        content: string;
+        frontmatter?: Record<string, unknown>;
+        overwrite?: boolean;
+      };
+
+      const normalizedPath = note_path.endsWith('.md') ? note_path : `${note_path}.md`;
+      const fullPath = path.join(VAULT_PATH, normalizedPath);
+
+      // Check if note already exists
+      if (!overwrite && await fileExists(fullPath)) {
+        return { content: [{ type: 'text', text: `Note already exists: ${normalizedPath}. Use overwrite=true to replace.` }] };
+      }
+
+      // Ensure parent directory exists
+      const parentDir = path.dirname(fullPath);
+      await ensureDirectoryExists(parentDir);
+
+      // Build file content with frontmatter
+      const frontmatterStr = formatFrontmatter(frontmatter);
+      const fileContent = frontmatterStr + content;
+
+      await fs.writeFile(fullPath, fileContent, 'utf-8');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Created note: ${normalizedPath}`
+        }]
+      };
+    }
+
+    case 'update_note': {
+      const { note_path, content, frontmatter } = args as {
+        note_path: string;
+        content: string;
+        frontmatter?: Record<string, unknown>;
+      };
+
+      const normalizedPath = note_path.endsWith('.md') ? note_path : `${note_path}.md`;
+      const fullPath = path.join(VAULT_PATH, normalizedPath);
+
+      if (!await fileExists(fullPath)) {
+        return { content: [{ type: 'text', text: `Note not found: ${normalizedPath}` }] };
+      }
+
+      // Read existing note to get current frontmatter if needed
+      const existingContent = await fs.readFile(fullPath, 'utf-8');
+      const { frontmatter: existingFrontmatter } = parseFrontmatter(existingContent);
+
+      // Merge frontmatter: new values override existing
+      const mergedFrontmatter = frontmatter
+        ? { ...existingFrontmatter, ...frontmatter }
+        : existingFrontmatter;
+
+      // Update the modified date
+      mergedFrontmatter.updated = new Date().toISOString();
+
+      // Build file content
+      const frontmatterStr = formatFrontmatter(mergedFrontmatter);
+      const fileContent = frontmatterStr + content;
+
+      await fs.writeFile(fullPath, fileContent, 'utf-8');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Updated note: ${normalizedPath}`
+        }]
+      };
+    }
+
+    case 'append_to_note': {
+      const { note_path, content, create_if_missing = false } = args as {
+        note_path: string;
+        content: string;
+        create_if_missing?: boolean;
+      };
+
+      const normalizedPath = note_path.endsWith('.md') ? note_path : `${note_path}.md`;
+      const fullPath = path.join(VAULT_PATH, normalizedPath);
+
+      const exists = await fileExists(fullPath);
+
+      if (!exists && !create_if_missing) {
+        return { content: [{ type: 'text', text: `Note not found: ${normalizedPath}. Use create_if_missing=true to create it.` }] };
+      }
+
+      if (!exists) {
+        // Create new note with content
+        const parentDir = path.dirname(fullPath);
+        await ensureDirectoryExists(parentDir);
+        await fs.writeFile(fullPath, content, 'utf-8');
+        return {
+          content: [{
+            type: 'text',
+            text: `Created note and added content: ${normalizedPath}`
+          }]
+        };
+      }
+
+      // Append to existing note
+      const existingContent = await fs.readFile(fullPath, 'utf-8');
+      const newContent = existingContent.trimEnd() + '\n\n' + content;
+      await fs.writeFile(fullPath, newContent, 'utf-8');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Appended content to: ${normalizedPath}`
+        }]
+      };
     }
 
     default:
